@@ -1,11 +1,13 @@
 def build_response(text: str):
 
+    ssml = f"<speak>{text}</speak>"
+
     return {
         "version": "1.0",
         "response": {
             "outputSpeech": {
-                "type": "PlainText",
-                "text": text[:800]
+                "type": "SSML",
+                "ssml": ssml
             },
             "shouldEndSession": False
         }
