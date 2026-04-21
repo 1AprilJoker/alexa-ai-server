@@ -1,37 +1,51 @@
 from fastapi import FastAPI, Request
 from app.ai import ask_ai, simplify_text
-from app.translit import to_phonetic
+from app.memory import get_memory, save_memory
 from app.alexa import build_response
 
 app = FastAPI()
 
 
-@app.get("/")
-def health():
-    return {"status": "ok"}
-
-
 @app.post("/alexa")
-async def alexa_webhook(request: Request):
+async def alexa(req: Request):
 
-    body = await request.json()
+    body = await req.json()
 
+    session_id = body["session"]["sessionId"]
+    session_new = body["session"]["new"]
+
+    intent = body["request"].get("intent", {}).get("name", "")
+
+    # 🧠 1. LaunchRequest = старт чата
+    if session_new:
+        return build_response(
+            "Hi. I'm ready. Ask me anything."
+        )
+
+    # 🧠 2. извлечение текста
     try:
         user_text = body["request"]["intent"]["slots"]["query"]["value"]
-    except Exception:
-        return build_response("Sorry, I did not understand")
+    except:
+        user_text = "continue"
 
-    # 1. AI ответ (русский)
-    ru = ask_ai(user_text)
+    # 🧠 3. memory load
+    memory = get_memory(session_id)
 
-    # 2. упрощаем речь
+    # 🧠 4. AI
+    ru = ask_ai(user_text, memory)
     ru = simplify_text(ru)
 
-    # 3. ограничиваем длину
-    ru = ru[:250]
+    # 🧠 5. save memory
+    save_memory(session_id, user_text, ru)
 
-    # 4. транслит
-    phonetic = to_phonetic(ru)
-
-    # 5. ответ Alexa
-    return build_response(phonetic)
+    # 🔥 6. НЕ закрываем сессию
+    return {
+        "version": "1.0",
+        "response": {
+            "outputSpeech": {
+                "type": "PlainText",
+                "text": ru
+            },
+            "shouldEndSession": False
+        }
+    }
