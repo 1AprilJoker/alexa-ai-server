@@ -1,9 +1,13 @@
 from fastapi import FastAPI, Request
 from app.ai import ask_ai, simplify_text
 from app.memory import get_memory, save_memory
-from app.alexa import build_response
 
 app = FastAPI()
+
+
+@app.get("/")
+def health():
+    return {"status": "ok"}
 
 
 @app.post("/alexa")
@@ -12,39 +16,32 @@ async def alexa(req: Request):
     body = await req.json()
 
     session_id = body["session"]["sessionId"]
-    session_new = body["session"]["new"]
 
-    intent = body["request"].get("intent", {}).get("name", "")
-
-    # 🧠 1. LaunchRequest = старт чата
-    if session_new:
-        return build_response(
-            "Hi. I'm ready. Ask me anything."
-        )
-
-    # 🧠 2. извлечение текста
+    # извлечение текста
     try:
         user_text = body["request"]["intent"]["slots"]["query"]["value"]
     except:
         user_text = "continue"
 
-    # 🧠 3. memory load
     memory = get_memory(session_id)
 
-    # 🧠 4. AI
-    ru = ask_ai(user_text, memory)
-    ru = simplify_text(ru)
+    # AI
+    answer = ask_ai(user_text, memory)
+    answer = simplify_text(answer)
 
-    # 🧠 5. save memory
-    save_memory(session_id, user_text, ru)
+    # 🔥 финальная защита от английского
+    latin_ratio = sum(c.isascii() and c.isalpha() for c in answer) / max(len(answer), 1)
+    if latin_ratio > 0.4:
+        answer = "Извини, повтори вопрос"
 
-    # 🔥 6. НЕ закрываем сессию
+    save_memory(session_id, user_text, answer)
+
     return {
         "version": "1.0",
         "response": {
             "outputSpeech": {
                 "type": "PlainText",
-                "text": ru
+                "text": answer
             },
             "shouldEndSession": False
         }
