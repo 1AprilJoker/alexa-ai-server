@@ -1,6 +1,5 @@
 store = {}
 
-
 def save_token(user_id: str, token: dict):
     store[user_id] = token
 
