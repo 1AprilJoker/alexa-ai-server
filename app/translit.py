@@ -1,3 +1,5 @@
+import re
+
 RU_MAP = {
     "а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"yo",
     "ж":"zh","з":"z","и":"i","й":"y","к":"k","л":"l","м":"m",
@@ -10,4 +12,26 @@ RU_MAP = {
 def to_phonetic(text: str):
 
     text = text.lower()
-    return "".join(RU_MAP.get(c, c) for c in text)
+
+    # заменяем знаки препинания на паузы SSML
+    text = re.sub(r"[–—-]", " <break time='300ms'/> ", text)
+    text = re.sub(r"[.]", " <break time='500ms'/> ", text)
+    text = re.sub(r"[,]", " <break time='200ms'/> ", text)
+
+    result = []
+    i = 0
+
+    while i < len(text):
+
+        # пропускаем SSML теги как есть
+        if text[i] == "<":
+            tag_end = text.find(">", i)
+            result.append(text[i:tag_end+1])
+            i = tag_end + 1
+            continue
+
+        char = text[i]
+        result.append(RU_MAP.get(char, char))
+        i += 1
+
+    return "".join(result)
