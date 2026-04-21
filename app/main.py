@@ -2,7 +2,6 @@ from fastapi import FastAPI, Request
 from app.ai import ask_ai, simplify_text
 from app.memory import get_memory, save_memory
 
-# 🔥 Spotify
 from app.spotify_api import search_track, play_track
 from app.storage import get_token
 
@@ -14,28 +13,29 @@ def health():
     return {"status": "ok"}
 
 
-# =========================
-# 🔥 ALEXA WEBHOOK
-# =========================
 @app.post("/alexa")
 async def alexa(req: Request):
 
     body = await req.json()
 
-    # =========================
-    # 🧠 SAFE REQUEST PARSING
-    # =========================
     request = body.get("request", {})
     request_type = request.get("type", "")
 
-    # 🔥 ВАЖНО: стабильный user id (НЕ sessionId)
-    session_id = body["session"]["user"]["userId"]
+    # =========================
+    # 🔥 SAFE USER ID (CRITICAL FIX)
+    # =========================
+    session_id = body.get("session", {}).get("user", {}).get("userId", "unknown_user")
 
+    # =========================
+    # 🔥 SAFE INTENT PARSING
+    # =========================
     intent = None
     if request_type == "IntentRequest":
         intent = request.get("intent", {}).get("name")
 
-    # safe slot extraction
+    # =========================
+    # 🔥 SAFE SLOT EXTRACTION
+    # =========================
     try:
         user_text = request["intent"]["slots"]["query"]["value"]
     except:
@@ -46,7 +46,7 @@ async def alexa(req: Request):
     answer = None
 
     # =========================
-    # 🎧 SPOTIFY INTENT
+    # 🎧 SPOTIFY MODE
     # =========================
     if intent == "PlayMusicIntent":
 
@@ -67,7 +67,7 @@ async def alexa(req: Request):
                 answer = "Не нашёл подходящую песню"
 
     # =========================
-    # 🤖 AI DEFAULT MODE
+    # 🤖 AI MODE (DEFAULT)
     # =========================
     else:
 
@@ -89,7 +89,7 @@ async def alexa(req: Request):
     save_memory(session_id, user_text, answer)
 
     # =========================
-    # 📢 RESPONSE
+    # 📢 RESPONSE TO ALEXA
     # =========================
     return {
         "version": "1.0",
