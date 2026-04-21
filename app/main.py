@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from app.ai import ask_ai, simplify_text
 from app.memory import get_memory, save_memory
 
-# 🔥 Spotify imports
+# 🔥 Spotify
 from app.spotify_api import search_track, play_track
 from app.storage import get_token
 
@@ -22,19 +22,28 @@ async def alexa(req: Request):
 
     body = await req.json()
 
-    session_id = body["session"]["sessionId"]
+    # =========================
+    # 🧠 SAFE REQUEST PARSING
+    # =========================
+    request = body.get("request", {})
+    request_type = request.get("type", "")
 
-    intent = body["request"]["intent"]["name"]
+    # 🔥 ВАЖНО: стабильный user id (НЕ sessionId)
+    session_id = body["session"]["user"]["userId"]
 
-    # -------------------------
-    # extract user text safely
-    # -------------------------
+    intent = None
+    if request_type == "IntentRequest":
+        intent = request.get("intent", {}).get("name")
+
+    # safe slot extraction
     try:
-        user_text = body["request"]["intent"]["slots"]["query"]["value"]
+        user_text = request["intent"]["slots"]["query"]["value"]
     except:
         user_text = "continue"
 
     memory = get_memory(session_id)
+
+    answer = None
 
     # =========================
     # 🎧 SPOTIFY INTENT
@@ -66,7 +75,10 @@ async def alexa(req: Request):
         answer = simplify_text(answer)
 
         # 🔥 защита от английского
-        latin_ratio = sum(c.isascii() and c.isalpha() for c in answer) / max(len(answer), 1)
+        latin_ratio = sum(
+            c.isascii() and c.isalpha()
+            for c in answer
+        ) / max(len(answer), 1)
 
         if latin_ratio > 0.4:
             answer = "Извини, повтори вопрос"
@@ -77,7 +89,7 @@ async def alexa(req: Request):
     save_memory(session_id, user_text, answer)
 
     # =========================
-    # 📢 ALEXA RESPONSE
+    # 📢 RESPONSE
     # =========================
     return {
         "version": "1.0",
