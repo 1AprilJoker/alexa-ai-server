@@ -22,7 +22,7 @@ async def alexa(req: Request):
     request_type = request.get("type", "")
 
     # =========================
-    # 🔥 SAFE USER ID (CRITICAL FIX)
+    # 🔥 SAFE USER ID
     # =========================
     session_id = body.get("session", {}).get("user", {}).get("userId", "unknown_user")
 
@@ -50,26 +50,26 @@ async def alexa(req: Request):
     # =========================
     if intent == "PlayMusicIntent":
 
-    token = get_token(session_id)
+        token = get_token(session_id)
 
-    if not token:
-        answer = "Spotify не подключен"
+        if not token:
+            answer = "Spotify не подключен"
 
-    else:
-        access_token = token["access_token"]
-
-        uri = search_track(user_text, access_token)
-
-        print("TRACK URI:", uri)
-
-        if uri:
-            status = play_track(uri, access_token)
-
-            print("PLAY STATUS:", status)
-
-            answer = "Включаю музыку"
         else:
-            answer = "Не нашёл трек"
+            access_token = token["access_token"]
+
+            uri = search_track(user_text, access_token)
+
+            print("TRACK URI:", uri)
+
+            if uri:
+                status = play_track(uri, access_token)
+
+                print("PLAY STATUS:", status)
+
+                answer = "Включаю музыку"
+            else:
+                answer = "Не нашёл трек"
 
     # =========================
     # 🤖 AI MODE (DEFAULT)
